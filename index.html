@@ -249,13 +249,34 @@
     }
     var form = document.getElementById('signup');
     var done = document.getElementById('done');
+    var KIT_READY = form.action.indexOf('KIT_FORM_ID') === -1;
+    // Backup copy of every sign-up in our own database (insert-only, visitors cannot read it).
+    var SB_URL = 'https://cdjxsozediftsolymjro.supabase.co/rest/v1/sleep_subscribers';
+    var SB_KEY = 'sb_publishable_Z-o-QEXAm_DUzWZZpMWqDw_41X5HgFs';
+    function saveBackup(email, name) {
+      return fetch(SB_URL, {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ email: email, first_name: name || null, source: 'thesleepfixes.com' })
+      }).catch(function () {});
+    }
     form.addEventListener('submit', function (e) {
-      // Until the Kit form ID is set, show the confirmation without sending.
-      if (form.action.indexOf('KIT_FORM_ID') !== -1) {
-        e.preventDefault();
-        form.style.display = 'none';
-        done.style.display = 'block';
-      }
+      e.preventDefault();
+      var email = form.querySelector('[name="email_address"]').value.trim();
+      var name = form.querySelector('[name="fields[first_name]"]').value.trim();
+      var btn = form.querySelector('button');
+      btn.disabled = true;
+      var timeout = new Promise(function (r) { setTimeout(r, 2500); });
+      Promise.race([saveBackup(email, name), timeout]).then(function () {
+        if (KIT_READY) {
+          HTMLFormElement.prototype.submit.call(form);
+        } else {
+          // Email delivery not connected yet: hand the guide over directly.
+          done.innerHTML = '<strong>Here is your guide.</strong><p><a href="/the-5-sleep-fixes.pdf" download style="color:inherit;text-decoration:underline">Download The 5 Sleep Fixes (PDF)</a></p>';
+          form.style.display = 'none';
+          done.style.display = 'block';
+        }
+      });
     });
   })();
 </script>
