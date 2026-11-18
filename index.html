@@ -191,11 +191,12 @@
             <input type="email" name="email_address" autocomplete="email" required placeholder="Your email" aria-label="Email">
           </div>
           <button class="go" type="submit">Send me the free guide</button>
-          <p class="fine">Free, 8 pages. You'll also get a few short emails about sleep, some with products we think are worth a look. Unsubscribe anytime. <a href="/privacy.html">Privacy</a></p>
+          <p class="fine">Free, 8 pages. Download it right after you sign up. A copy comes by email too, with a few short sleep tips, some with products we think are worth a look. Unsubscribe anytime. <a href="/privacy.html">Privacy</a></p>
+          <p class="fine">Written by Kzam Studio. General sleep information, not medical advice.</p>
         </form>
         <div class="done" id="done" role="status">
-          <strong>Check your inbox.</strong>
-          <p>Your guide is on its way. Not there in 5 minutes? Look in spam or promotions.</p>
+          <strong>Here is your guide.</strong>
+          <p>Download it now. A copy is on its way to your inbox too. Not there in 5 minutes? Look in spam or promotions.</p>
         </div>
       </div>
 
@@ -235,7 +236,7 @@
   <section class="dawn">
     <div class="wrap">
       <h2>Start with tonight.</h2>
-      <p>Pick the fix that sounds most like you and try it for one week. The guide is free and lands in your inbox in a minute.</p>
+      <p>Pick the fix that sounds most like you and try it for one week. The guide is free. Download it the moment you sign up, and get a copy by email.</p>
       <a class="go button go" href="#get" style="font-weight:600;padding:16px 26px;border-radius:12px;background:var(--ink);color:#fbf2e8">Send me the free guide</a>
     </div>
   </section>
@@ -269,7 +270,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email, first_name: name || '' })
-      }).catch(function () {});
+      }).then(function (r) { return r.ok; }).catch(function () { return false; });
     }
     // Backup copy of every sign-up in our own database (insert-only, visitors cannot read it).
     var SB_URL = 'https://cdjxsozediftsolymjro.supabase.co/rest/v1/sleep_subscribers';
@@ -279,7 +280,7 @@
         method: 'POST',
         headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
         body: JSON.stringify({ email: email, first_name: name || null, source: 'thesleepfixes.com' })
-      }).catch(function () {});
+      }).then(function (r) { return r.ok; }).catch(function () { return false; });
     }
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -287,11 +288,19 @@
       var name = form.querySelector('[name="fields[first_name]"]').value.trim();
       var btn = form.querySelector('button');
       btn.disabled = true;
-      var timeout = new Promise(function (r) { setTimeout(r, 4000); });
-      Promise.race([Promise.all([saveBackup(email, name), sendToList(email, name)]), timeout]).then(function () {
+      var timeout = new Promise(function (r) { setTimeout(function () { r(null); }, 4000); });
+      Promise.race([Promise.all([saveBackup(email, name), sendToList(email, name)]), timeout]).then(function (res) {
+        var link = '<p><a href="/the-5-sleep-fixes.pdf" download style="color:inherit;text-decoration:underline">Download The 5 Sleep Fixes (PDF)</a></p>';
+        // res is null when the 4 second wait ran out: the requests may still land, so treat it as sent.
+        var failed = Array.isArray(res) && !res[0] && !res[1];
         // Hand the guide over right away; the welcome emails follow from Systeme.io.
-        done.innerHTML = '<strong>Here is your guide.</strong><p><a href="/the-5-sleep-fixes.pdf" download style="color:inherit;text-decoration:underline">Download The 5 Sleep Fixes (PDF)</a></p><p>A copy and a few short sleep tips are on their way to your inbox.</p>';
-        form.style.display = 'none';
+        if (failed) {
+          done.innerHTML = '<strong>Here is your guide.</strong>' + link + '<p>We could not save your email, so the tips by email may not reach you. Please submit the form again in a minute.</p>';
+          btn.disabled = false;
+        } else {
+          done.innerHTML = '<strong>Here is your guide.</strong>' + link + '<p>A copy and a few short sleep tips are on their way to your inbox.</p>';
+          form.style.display = 'none';
+        }
         done.style.display = 'block';
       });
     });
